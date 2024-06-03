@@ -1,0 +1,72 @@
+pipeline 
+{
+    agent any
+    stages 
+    {
+        stage('igp-proj1 code checkout') 
+        {
+            steps 
+            {
+                // Get code from a GitHub repositorymain
+            	git branch: 'main',
+                url: 'https://github.com/tgreddy1/purdue-igp-project1.git'
+            }
+        }
+        stage('igp-proj1 code compile') 
+        {
+            steps 
+            {
+                sh 'mvn compile'
+            }
+        }  
+        stage('igp-proj1 code test') 
+        {
+            steps 
+            {
+                sh 'mvn test'
+            }
+        } 
+        stage('igp-proj1 code build') 
+        {
+            steps 
+            {
+                sh 'mvn package'
+            }
+        } 
+        stage('igp-proj1 Build Docker Image')
+		{
+			steps
+			{
+			    sh 'cp /var/lib/jenkins/workspace/$JOB_NAME/target/ABCtechnologies-1.0.war abc_tech.war'
+                	    sh 'docker build -t abc_tech:$BUILD_NUMBER .'
+			    sh 'docker tag abc_tech:$BUILD_NUMBER tgreddy1/abc_tech:$BUILD_NUMBER'
+			}
+		}
+		stage('igp-proj1 Push Docker Image')
+		{ 
+			steps
+			{   
+			    withDockerRegistry([ credentialsId: "dockerhub_id", url: "" ])
+			    {
+			       sh 'docker push tgreddy1/abc_tech:$BUILD_NUMBER'
+			    }
+			}
+		}
+
+		stage('igp-proj1 Deploy as container')
+		{
+			steps
+			{
+				sh 'docker run -itd -P tgreddy1/abc_tech:$BUILD_NUMBER'
+			}
+		}
+		stage('Deploy to k8s cluster ')
+		{
+			steps
+			{
+				sh 'kubectl create -f deploy.yaml'
+	            		sh 'kubectl create -f svc.yaml'
+			}
+		}
+    }
+}
